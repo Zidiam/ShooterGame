@@ -1,0 +1,768 @@
+#Made by Jason Melnik
+#Date: 12/18/2017
+#Version of game: 1.2
+
+#Imports
+import pygame
+import time
+import random
+import operator
+
+#The size of the screen
+WIDTH = 500
+HEIGHT = 500
+FPS = 30
+
+#A set list of high scores
+global list_of_names
+list_of_names = {'JACK': 200, 'JILL': 100, 'JAS': 20, 'DAR': 45, 'SAR': 42, 'BILL': 23, 'TILL': 30, 'YILL': 67, 'NEE': 12, 'TES': 85}
+
+#Color codes
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+VIOLET = (148, 0, 211)
+YELLOW = (255, 255, 0)
+
+#Bullet object
+class Bullet(pygame.sprite.Sprite):
+    # Bullet that shoots up
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((5, 10))
+        self.image.fill(RED)
+        self.rect = self.image.get_rect()
+        self.rect.center = (WIDTH / 2, HEIGHT / 2)
+
+    def update(self):
+        if self.rect.top <= HEIGHT:#if the bullet is not greather than top we want it to keep going up by increasing the y
+            self.rect.y -= 5
+        if self.rect.top <= 0:#but if it reachest the top it gets reset back into the Fighter
+            global bullet_counter
+            bullet_counter -= 1
+            self.rect.center = (fighter.rect.center)
+        locator = 0
+        global points_counter
+        global enemy_ship_location
+        global coins
+
+        for i in range(len(enemy_ships_list)):#This algorithm is to delete the enemy ship if the bullet hits it
+            try:
+                if pygame.sprite.collide_rect(self, enemy_ships_list[locator]):
+                    coins += 5
+                    bullet_counter -= 1
+                    self.rect.center = fighter.rect.center
+                    enemy_ships.remove(enemy_ships.sprites()[locator])
+                    del enemy_ships_list[locator]
+                    points_counter += 1
+                    if locator == enemy_ship_location:
+                        enemy_ship_location = random.randint(0, len(enemy_ships_list))
+                        if enemy_ship_location != 0:
+                            enemy_ship_location -= 1
+                        locator = 0
+                    elif locator < enemy_ship_location:
+                        enemy_ship_location -= 1
+                    else:
+                        locator += 1
+            except IndexError:
+                continue
+            locator += 1
+
+#Fighter Object
+class Fighter(pygame.sprite.Sprite):
+    # Fighter that moves around
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((20, 20))
+        self.image.fill(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.center = (WIDTH / 2, HEIGHT)
+
+    def up(self):
+        self.rect.y -= 5
+    def down(self):
+        self.rect.y += 5
+    def left(self):
+        self.rect.x -= 5
+    def right(self):
+        self.rect.x += 5
+
+#Enemy Object
+class Easy_Enemy(pygame.sprite.Sprite):
+    # Enemy Ship that moves around
+    def __init__(self, enemy_ship_x, enemy_ship_y):#These are its features
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((40, 10))
+        self.image.fill(VIOLET)
+        self.rect = self.image.get_rect()
+        self.rect.center = (enemy_ship_x, enemy_ship_y)
+
+    def update(self):#Moves down unless it touches the bottom creating a game over
+        global points_counter
+        if self.rect.left >= 0 and self.rect.right <= WIDTH:
+            self.rect.y += 5
+        if self.rect.bottom >= HEIGHT:
+            global game_over_2
+            game_over_2 = True
+
+#This object is just to click on in the shop
+class Bullet_Speed(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((40, 40))
+        self.image.fill(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.center = (50, 40)
+
+#This object is just to click on in the shop
+class Extra_Bullet(pygame.sprite.Sprite):
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((40, 40))
+        self.image.fill(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.center = (310, 40)
+
+#This object is just to click on in the shop
+class Movement_Speed(pygame.sprite.Sprite):
+    # Enemy Ship that moves around
+    def __init__(self):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((40, 40))
+        self.image.fill(BLACK)
+        self.rect = self.image.get_rect()
+        self.rect.center = (180, 40)
+
+#My level algorith that creates levels for me
+def levels(x):
+    global enemy_death_count
+    enemy_death_count = 0
+    global enemy_ship_y
+    global enemy_ship_x
+    global continue_level
+    global enemy_ships_list
+    global enemy_ships
+    global enemy_speed
+    global enemy_ship
+    enemy_ships_list = []
+    continue_level = 0
+    enemy_ship_y = 20
+    enemy_ship_x = 20
+    for i in range(x):#Basicly to put it in simple terms if the ships reach the end of the screen it start a new row and so on untill it reachest level 191 then it resets
+        enemy_ship = Easy_Enemy(enemy_ship_x, enemy_ship_y)
+        enemy_ships.add(enemy_ship)
+        enemy_ships_list.append(enemy_ship)
+        enemy_ship_x += 50
+        if enemy_ship_x >= 480:
+            enemy_ship_x = 20
+            enemy_ship_y += 20
+            enemy_speed -= 10
+        if enemy_ship_y >= 400:
+            global total_level
+            global level
+            enemy_ships_list = []
+            enemy_ship_y = 20
+            enemy_ship_x = 20
+            enemy_speed = 500
+            total_level = total_level + level
+            level = 10
+        continue_level += 1
+    global start_level
+    start_level = 1
+
+def gameLoop():#The start of the whole game
+    #Global Initiation
+    global enemy_ship_location
+    global enemy_counter
+    global enemy_ship_x
+    global enemy_ship_y
+    global start_level
+    global level
+    global total_level
+    global enemy_death_count
+    global continue_level
+    global enemy_ship_location
+    global allenemy_counter
+    global enemy_ships_list
+    global name
+    global left_key
+    global right_key
+    global points_counter
+    global bullet_counter
+    global game_over_2
+    global enemy_ships
+    global fighter
+    global bullet
+    global up_key
+    global move_timer
+    global bullet_timer
+    global bullet_speed
+    global coins
+    global movement
+    global speed
+    global move
+    global wait
+    global uup_key
+    global enemy_speed
+    global extra_bullet_object
+    global bullet_speed_object
+    global PowerUps
+    global Extra_Bullet
+    global movement_speed
+    global Bullets
+    global bullet_list
+    global movement_counter
+
+    #Object Setup
+    Main = pygame.sprite.Group()
+    Bullets = pygame.sprite.Group()
+    PowerUps = pygame.sprite.Group()
+    enemy_ships = pygame.sprite.Group()
+    bullet = Bullet()
+    bullet_list = []
+    bullet_list.append(bullet)
+    extra_bullet_object = Extra_Bullet()
+    bullet_speed_object = Bullet_Speed()
+    PowerUps.add(bullet_speed_object)
+    PowerUps.add(extra_bullet_object)
+    movement_speed = Movement_Speed()
+    PowerUps.add(movement_speed)
+    Bullets.add(bullet)
+    fighter = Fighter()
+    Main.add(fighter)
+
+    #Pygame Setup
+    pygame.init()
+    pygame.mixer.init()
+    screen = pygame.display.set_mode((WIDTH, HEIGHT))  # Sets the screen size
+    pygame.display.set_caption("The Ginza Game")  # sets the caption
+    clock = pygame.time.Clock()
+
+    #All starting values
+    name = ""
+    coins = 0
+    wait = 0
+    speed = 0
+    move = 0
+    enemy_speed = 500
+    answer = ''
+    total_level = 10
+    uup_key = 0
+    movement = 10
+    movement_counter = 0
+    bullet_timer = 0
+    bullet_speed = 500
+    move_timer = 0
+    game_over_2 = False
+    enemy_ship_location = 0
+    points_counter = 0
+    bullet_counter = -1
+    up_key = 0
+    gameExit = False
+    game_over = False
+    left_key = 0
+    right_key = 0
+    enemy_counter = 0
+    enemy_ship_x = 20
+    enemy_ship_y = 20
+    start_level = 0
+    level = 10
+    enemy_death_count = 0
+    continue_level = 0
+    all_enemy_counter = 0
+    enter = False
+    enter2 = False
+    inputed_name = False
+    global yesorno
+    yesorno = False
+    while inputed_name == False:#This code is for entering your name
+        if yesorno == False:
+            pygame.init()
+            pygame.mixer.init()
+            screen = pygame.display.set_mode((WIDTH, HEIGHT))
+            pygame.display.set_caption("The Ginza Game")
+            clock = pygame.time.Clock()
+
+            screen.fill(WHITE)
+
+            basicfont4 = pygame.font.SysFont(None, 24)#This code displays letters onto the screen
+            text4 = basicfont4.render("Enter Name: ", True, (0, 255, 0))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 230
+            screen.blit(text4, textrect4)
+
+            basicfont4 = pygame.font.SysFont(None, 24)#This code displays letters onto the screen
+            text4 = basicfont4.render("Press enter to continue!", True, (0, 255, 0))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 270
+            screen.blit(text4, textrect4)
+
+            basicfont4 = pygame.font.SysFont(None, 24)#This code displays letters onto the screen
+            text4 = basicfont4.render("Welcome to the Ginza Game! ", True, (0, 255, 0))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 7
+            screen.blit(text4, textrect4)
+
+            basicfont4 = pygame.font.SysFont(None, 24)#This code displays letters onto the screen
+            text4 = basicfont4.render(name, True, (0, 0, 255))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 250
+            screen.blit(text4, textrect4)
+
+            pygame.display.flip()
+            pygame.display.update()
+            for event in pygame.event.get():#This code is to see what keys you press and input them into name
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_KP_ENTER:#If you click enter it jumps to the game if theres no one in the list that has that name
+                        enter = True
+                    if event.key == pygame.K_a:
+                        name = name + "A"
+                    if event.key == pygame.K_b:
+                        name = name + "B"
+                    if event.key == pygame.K_c:
+                        name = name + "C"
+                    if event.key == pygame.K_d:
+                        name = name + "D"
+                    if event.key == pygame.K_e:
+                        name = name + "E"
+                    if event.key == pygame.K_f:
+                        name = name + "F"
+                    if event.key == pygame.K_g:
+                        name = name + "G"
+                    if event.key == pygame.K_h:
+                        name = name + "H"
+                    if event.key == pygame.K_i:
+                        name = name + "I"
+                    if event.key == pygame.K_j:
+                        name = name + "J"
+                    if event.key == pygame.K_k:
+                        name = name + "K"
+                    if event.key == pygame.K_l:
+                        name = name + "L"
+                    if event.key == pygame.K_m:
+                        name = name + "M"
+                    if event.key == pygame.K_n:
+                        name = name + "N"
+                    if event.key == pygame.K_o:
+                        name = name + "O"
+                    if event.key == pygame.K_p:
+                        name = name + "P"
+                    if event.key == pygame.K_q:
+                        name = name + "Q"
+                    if event.key == pygame.K_r:
+                        name = name + "R"
+                    if event.key == pygame.K_s:
+                        name = name + "S"
+                    if event.key == pygame.K_t:
+                        name = name + "T"
+                    if event.key == pygame.K_u:
+                        name = name + "U"
+                    if event.key == pygame.K_v:
+                        name = name + "V"
+                    if event.key == pygame.K_w:
+                        name = name + "W"
+                    if event.key == pygame.K_x:
+                        name = name + "X"
+                    if event.key == pygame.K_y:
+                        name = name + "Y"
+                    if event.key == pygame.K_z:
+                        name = name + "Z"
+                    if event.key == pygame.K_BACKSPACE:#if you click backspace it gets rid of a letter in name
+                        name = list(name)
+                        del name[-1]
+                        name = ''.join(name)
+            if enter == True:#checks to see if name is in the list of people who played before and if yes you can choose to sign back in or not
+                if not (name in list_of_names):
+                    list_of_names[name] = 0
+                    inputed_name = True
+                else:
+                    yesorno = True
+        else:
+            screen.fill(WHITE)
+            basicfont4 = pygame.font.SysFont(None, 24)
+            text4 = basicfont4.render(name + " has already played want to log back in?(yes or no)", True, (0, 255, 0))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 7
+            screen.blit(text4, textrect4)
+            for event in pygame.event.get():
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_y:
+                        answer = answer + "Y"
+                    if event.key == pygame.K_e:
+                        answer = answer + "E"
+                    if event.key == pygame.K_s:
+                        answer = answer + "S"
+                    if event.key == pygame.K_n:
+                        answer = answer + "N"
+                    if event.key == pygame.K_o:
+                        answer = answer + "O"
+                    if event.key == pygame.K_BACKSPACE:
+                        answer = list(answer)
+                        del answer[-1]
+                        answer = ''.join(answer)
+                    if event.key == pygame.K_KP_ENTER:
+                        enter2 = True
+            basicfont4 = pygame.font.SysFont(None, 64)
+            text4 = basicfont4.render(answer, True, (0, 255, 0))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 250
+            screen.blit(text4, textrect4)
+
+            if enter2 == True:#This is the last conformation step to make sure you want to sign back in
+                if answer == "YES":
+                    inputed_name = True
+                if answer == "NO":
+                    yesorno = False
+                    name = ''
+                    enter = False
+                    answer = ''
+                enter2 = False
+            pygame.display.flip()
+            pygame.display.update()
+    game_over = False
+    pygame.init()
+    while not gameExit:
+        while game_over != False:#This is the main Code
+            screen.fill(WHITE)
+            pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:#If you click on the X on the screen it asks if you want to close the game
+                gameExit = True
+        keystate = pygame.key.get_pressed()
+        movement_counter += 1
+        if movement_counter >= movement:
+            if keystate[pygame.K_w] and keystate[pygame.K_d]:
+                fighter.up()
+                fighter.right()
+            elif keystate[pygame.K_a] and keystate[pygame.K_w]:
+                fighter.up()
+                fighter.left()
+            elif keystate[pygame.K_a] and keystate[pygame.K_s]:
+                fighter.down()
+                fighter.left()
+            elif keystate[pygame.K_s] and keystate[pygame.K_d]:
+                fighter.down()
+                fighter.right()
+
+
+            elif keystate[pygame.K_a]:
+                fighter.left()
+            elif keystate[pygame.K_d]:
+                fighter.right()
+            elif keystate[pygame.K_w]:
+                fighter.up()
+            elif keystate[pygame.K_s]:
+                fighter.down()
+            movement_counter = 0
+        if keystate[pygame.K_p]:
+            if up_key == 0:
+                up_key += 1
+            else:
+                wait = 0
+                up_key -= 1
+        if up_key > 0:#This is the start of the shop code
+            pygame.init()
+            pygame.mixer.init()
+            screen2 = pygame.display.set_mode((WIDTH, HEIGHT))
+            pygame.display.set_caption("The Ginza Game")
+
+            screen2.fill(WHITE)
+
+            if pygame.mouse.get_pressed()[0]:#This checks if you clicked on that object
+                pos = pygame.mouse.get_pos()
+                if bullet_speed_object.rect.collidepoint(pos):
+                    if coins >= 50:#This makes sure you have enough coins
+                        bullet_speed -= 5
+                        coins = coins - 50
+                        speed += 1
+                    else:
+                        wait = wait + 1000 # if not then add a wait time that will display a sign saying Not enough coins
+                if extra_bullet_object.rect.collidepoint(pos):
+                    if coins >= 500:
+                        bullet2 = Bullet()
+                        bullet_list.append(bullet2)
+                        Bullets.add(bullet2)
+                        coins = coins - 500
+                    else:
+                        wait = wait + 1000
+                if movement_speed.rect.collidepoint(pos):
+                    if coins >= 50:
+                        movement -= 5
+                        coins = coins - 50
+                        move += 1
+                    else:
+                        wait = wait + 1000
+
+            if wait > 1:
+                basicfont4 = pygame.font.SysFont(None, 48)
+                text4 = basicfont4.render("Not Enough Coins!", True, (255, 0, 0))
+                textrect4 = text4.get_rect()
+                textrect4.centerx = 250
+                textrect4.centery = 250
+                screen2.blit(text4, textrect4)
+                wait -= 1
+            basicfont4 = pygame.font.SysFont(None, 24)
+            text4 = basicfont4.render("Press P to leave shop!", True, (0, 0, 255))
+            textrect4 = text4.get_rect()
+            textrect4.centerx = 250
+            textrect4.centery = 480
+            screen2.blit(text4, textrect4)
+
+            text6 = basicfont1.render("Coins: " + str(coins), True, (255, 255, 0), (255, 255, 255))
+            textrect6 = text6.get_rect()
+            textrect6.right = 500
+            screen.blit(text6, textrect6)
+
+            text5 = basicfont4.render("Bullet Speed", True, (0, 0, 255))
+            textrect5 = text5.get_rect()
+            textrect5.centerx = 50
+            textrect5.centery = 70
+            screen2.blit(text5, textrect5)
+            text5 = basicfont4.render("Cost: 50", True, (0, 255, 0))
+            textrect5 = text5.get_rect()
+            textrect5.centerx = 50
+            textrect5.centery = 12
+            screen2.blit(text5, textrect5)
+
+            text5 = basicfont4.render("Extra Bullet", True, (0, 0, 255))
+            textrect5 = text5.get_rect()
+            textrect5.centerx = 310
+            textrect5.centery = 70
+            screen2.blit(text5, textrect5)
+            text5 = basicfont4.render("Cost: 500", True, (0, 255, 0))
+            textrect5 = text5.get_rect()
+            textrect5.centerx = 310
+            textrect5.centery = 12
+            screen2.blit(text5, textrect5)
+
+            text5 = basicfont4.render("Movement Speed", True, (0, 0, 255))
+            textrect5 = text5.get_rect()
+            textrect5.centerx = 180
+            textrect5.centery = 70
+            screen2.blit(text5, textrect5)
+            text5 = basicfont4.render("Cost: 50", True, (0, 255, 0))
+            textrect5 = text5.get_rect()
+            textrect5.centerx = 180
+            textrect5.centery = 12
+            screen2.blit(text5, textrect5)
+
+            #Stats:
+            text5 = basicfont4.render("Stats: ", True, (69, 69, 69))
+            textrect5 = text5.get_rect()
+            textrect5.left = (0)
+            textrect5.y = (300)
+            screen2.blit(text5, textrect5)
+
+            text5 = basicfont4.render("Movement Speed: " + str(move), True, (255, 0, 0))
+            textrect5 = text5.get_rect()
+            textrect5.left = (0)
+            textrect5.y = (320)
+            screen2.blit(text5, textrect5)
+
+            text5 = basicfont4.render("Bullet Speed: " + str(speed), True, (255, 0, 0))
+            textrect5 = text5.get_rect()
+            textrect5.left = (0)
+            textrect5.y = (340)
+            screen2.blit(text5, textrect5)
+
+            text5 = basicfont4.render("Bullets: " + str(len(bullet_list)), True, (255, 0, 0))
+            textrect5 = text5.get_rect()
+            textrect5.left = (0)
+            textrect5.y = (360)
+            screen2.blit(text5, textrect5)
+
+            PowerUps.draw(screen)
+
+            mpos = pygame.mouse.get_pos()
+
+            pygame.display.flip()
+            pygame.display.update()
+        if up_key == 0:#The part of the code that makes it happen
+            if start_level == 0:#Checks if its a new level and if yes then make new ships
+                levels(level)
+            if len(enemy_ships.sprites()) == 0:
+                start_level = 0
+                level += 1
+                total_level = total_level + 1
+            enemy_counter += 1  # Gives a delay
+            all_enemy_counter += 1
+
+            if all_enemy_counter >= enemy_speed:#The speed of the enemy ships going down
+                for i in range(len(enemy_ships_list)):
+                    if i != enemy_ship_location:
+                        enemy_ships.sprites()[i].rect.y += 10
+                all_enemy_counter = 0
+            if enemy_ship_location <= -1:#The bottom are making sure that when an enemy ship dies it makes a new location for the fast enemy ship
+                enemy_ship_location += 1
+            if enemy_ship_location >= len(enemy_ships_list):
+                enemy_ship_location -= 1
+            if enemy_counter >= 40:
+                try:
+                    enemy_ships.sprites()[enemy_ship_location].update()
+                except IndexError:
+                    continue
+                enemy_counter = 0
+
+            basicfont1 = pygame.font.SysFont(None, 24)
+            text1 = basicfont1.render('Level: ' + str(total_level - 9), True, (255, 0, 0), (255, 255, 255))
+            textrect1 = text1.get_rect()
+            textrect1.right = 500
+            screen.blit(text1, textrect1)
+
+            text2 = basicfont1.render('Points: ' + str(points_counter), True, (0, 255, 0), (255, 255, 255))
+            textrect2 = text2.get_rect()
+            textrect2.left = 0
+            screen.blit(text2, textrect2)
+
+            text3 = basicfont1.render(name, True, (0, 0, 255), (255, 255, 255))
+            textrect3 = text3.get_rect()
+            textrect3.centerx = 250
+            textrect3.centery = 7
+            screen.blit(text3, textrect3)
+
+            text4 = basicfont1.render("Coins: " + str(coins), True, (255, 255, 0), (255, 255, 255))
+            textrect6 = text4.get_rect()
+            textrect6.right = 500
+            textrect6.bottom = 480
+            screen.blit(text4, textrect6)
+
+            Bullets.draw(screen)
+            Main.draw(screen)
+            enemy_ships.draw(screen)
+            # after drawwing flip display
+            pygame.display.flip()
+
+            pygame.display.update()
+            screen.fill(WHITE)
+            if game_over_2 == True:
+                pygame.quit()
+                break
+game_over_2 = False
+done = False
+while done == False:
+    if game_over_2 == False:
+        gameLoop()
+        game_over_2 = True
+    if game_over_2 == True:
+        if list_of_names[name] < points_counter:#If your score was better than your old score than make it better if not then dont do anything
+            list_of_names[name] = points_counter
+        pygame.init()
+        pygame.mixer.init()
+        screen = pygame.display.set_mode((WIDTH, HEIGHT))
+        pygame.display.set_caption("High Scores:")
+        clock = pygame.time.Clock()
+
+        screen.fill(WHITE)
+
+        allnames = list_of_names#sorting code
+        allnames = sorted(allnames.items(), key=operator.itemgetter(1))
+        allnames.reverse()
+
+        basicfont4 = pygame.font.SysFont(None, 24)#Start of the High score code
+        text4 = basicfont4.render(("1: " + str(allnames[0][0]) + "............................" + str(allnames[0][1])), True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 50
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("2: " + str(allnames[1][0]) + "............................" + str(allnames[1][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 80
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("3: " + str(allnames[2][0]) + "............................" + str(allnames[2][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 120
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("4: " + str(allnames[3][0]) + "............................" + str(allnames[3][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 150
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("5: " + str(allnames[4][0]) + "............................" + str(allnames[4][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 180
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("6: " + str(allnames[5][0]) + "............................" + str(allnames[5][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 210
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("7: " + str(allnames[6][0]) + "............................" + str(allnames[6][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 240
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("8: " + str(allnames[7][0]) + "............................" + str(allnames[7][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 270
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("9: " + str(allnames[8][0]) + "............................" + str(allnames[8][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 300
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render(("10: " + str(allnames[9][0]) + "............................" + str(allnames[9][1])),
+                                  True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 330
+        screen.blit(text4, textrect4)
+
+        basicfont4 = pygame.font.SysFont(None, 24)
+        text4 = basicfont4.render("Press q to quit or c to continue", True, (0, 0, 255))
+        textrect4 = text4.get_rect()
+        textrect4.centerx = 250
+        textrect4.centery = 360
+        screen.blit(text4, textrect4)
+
+        pygame.display.flip()
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_q:#Quits the whole game
+                    gameExit = True
+                    game_over_2 = True
+                    pygame.quit()
+                    done = True
+                    break
+                if event.key == pygame.K_c:
+                    game_over_2 = False
+                    pygame.quit()
+                    break
